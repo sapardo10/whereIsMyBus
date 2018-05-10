@@ -3,87 +3,85 @@ import ReactDOM from 'react-dom';
 import { withTracker } from 'meteor/react-meteor-data';
 import { Numbers } from '../api/numbers.js';
 import classnames from 'classnames';
+import * as d3 from 'd3';
+
 
 class App extends Component {
 
-	handleSubmit(event){
+	constructor(props) {
+		super(props);
 
-		event.preventDefault();
-		const text = ReactDOM.findDOMNode(this.refs.numberInput).value.trim();
+		const nestedBuses=[];
+		const stackedBuses=[];
 
-		Meteor.call('numbers.insert',text);
+		const url = 'https://gist.githubusercontent.com/john-guerra/a0b840ba721ed771dd02d94a855cb595/raw/d68dba41f118bebc438a4f7ade9d27078efdfc09/sfBuses.json';
+		fetch(url)
+			.then((res) => res.json())
+			.then((data) => {
+				nestedBuses = d3.nest().key((d) => d.routeTag).entries(data.vehicle);
+				console.log(nestedBuses);
+				 for (let route of nestedBuses ) {
+			      route.total = 0;
+			      route.values[0].distance = 0;
+			      for (let i = 1 ; i < route.values.length; i++) {
+			        route.values[i].distance = getDistance(+route.values[i-1].lat, +route.values[i-1].lon,
+			          +route.values[i].lat, +route.values[i].lon);
+			        route.total += route.values[i].distance;
+			      }
+			  }
+ 				nestedBuses.sort(function(a, b) { return b.total - a.total; });
+			}
+			});
 
+		this.margin = {top: 20, right: 20, bottom: 30, left: 40};
 
 	}
 
+	getDistance = function(lat1,lon1,lat2,lon2) {
+    function deg2rad(deg) {
+      return deg * (Math.PI/180);
+    }
+
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2-lat1);  // deg2rad below
+    var dLon = deg2rad(lon2-lon1);
+    var a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon/2) * Math.sin(dLon/2)
+      ;
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    var d = R * c; // Distance in km
+    return d;
+  }
+
 	componentDidMount() {
-		var svg = d3.select("svg"),
-		    width = +svg.attr("width"),
-		    height = +svg.attr("height");
+		var svg = d3.select("svg");
+	    this.width = +svg.attr("width") - this.margin.left - this.margin.right,
+	    this.height = +svg.attr("height") - this.margin.top - this.margin.bottom,
+	    g = svg.append("g").attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
-		var format = d3.format(",d");
+		var x = d3.scaleBand()
+		    .rangeRound([0, this.width])
+		    .paddingInner(0.05)
+		    .align(0.1);
 
-		var color = d3.scaleOrdinal(d3.schemeCategory20c);
+		var y = d3.scaleLinear()
+	    	.rangeRound([this.height, 0]);
 
-		var pack = d3.pack()
-		    .size([width, height])
-		    .padding(1.5);
+		var z = d3.scaleOrdinal()
+	    	.range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
 
-		 var root = d3.hierarchy({children: classes})
-      .sum(function(d) { return d.value; })
-      .each(function(d) {
-        if (id = d.data.id) {
-          var id, i = id.lastIndexOf(".");
-          d.id = id;
-          d.package = id.slice(0, i);
-          d.class = id.slice(i + 1);
-        }
-      });
-
-  var node = svg.selectAll(".node")
-    .data(pack(root).leaves())
-    .enter().append("g")
-      .attr("class", "node")
-      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-
-  node.append("circle")
-      .attr("id", function(d) { return d.id; })
-      .attr("r", function(d) { return d.r; })
-      .style("fill", function(d) { return color(d.package); });
-
-  node.append("clipPath")
-      .attr("id", function(d) { return "clip-" + d.id; })
-    .append("use")
-      .attr("xlink:href", function(d) { return "#" + d.id; });
-
-  node.append("text")
-      .attr("clip-path", function(d) { return "url(#clip-" + d.id + ")"; })
-    .selectAll("tspan")
-    .data(function(d) { return d.class.split(/(?=[A-Z][^A-Z])/g); })
-    .enter().append("tspan")
-      .attr("x", 0)
-      .attr("y", function(d, i, nodes) { return 13 + (i - nodes.length / 2 - 0.5) * 10; })
-      .text(function(d) { return d; });
-
-  node.append("title")
-      .text(function(d) { return d.id + "\n" + format(d.value); });
-});
+	    
 
 	}
 
 	render() {
 		return (
 			<div>
-				<form onSubmit={this.handleSubmit.bind(this)}>
-					<div className="form-control">
-						<label>Ingresa un número</label>
-						<input type="text" ref="numberInput" />
-					</div>
-				</form>
 
-				<svg width="960" height="960" font-family="sans-serif" font-size="10" text-anchor="middle">
+				<svg width="960" height="500"></svg>
 
-				</svg>
 			</div>
 		);
 	}

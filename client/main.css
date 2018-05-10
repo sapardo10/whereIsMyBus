@@ -1,1 +1,4 @@
 /* CSS declarations go here */
+.axis .domain {
+  display: none;
+}
