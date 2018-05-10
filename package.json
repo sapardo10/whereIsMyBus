@@ -9,6 +9,8 @@
     "classnames": "^2.2.5",
     "d3": "^5.3.0",
     "meteor-node-stubs": "^0.3.2",
+    "meteor-now": "^0.6.1",
+    "now": "^11.1.7",
     "react": "^16.3.2",
     "react-dom": "^16.3.2"
   }
