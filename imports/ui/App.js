@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { withTracker } from 'meteor/react-meteor-data';
-import { Numbers } from '../api/numbers.js';
+import { Routes } from '../api/routes.js';
 import classnames from 'classnames';
 import * as d3 from 'd3';
+import AccountsUIWrapper from './AccountsUIWrapper.js';
 
 
 class App extends Component {
@@ -16,12 +17,13 @@ class App extends Component {
 		    stackedBuses:[],
 		    maxNumBuses:0,
 		    keys:[],
+		    flag:false,
 		};		
 		
 		this.margin = {top: 20, right: 20, bottom: 30, left: 40};
 	}
 
-	componentDidMount() {
+	componentWillMount() {
 
 		const that = this;
 
@@ -46,7 +48,9 @@ class App extends Component {
 			    	
 				}
 				
- 			that.state.nestedBuses = nestedBuses.sort(function(a, b) { return b.total - a.total; });
+ 			that.setState({
+ 				nestedBuses : nestedBuses.sort(function(a, b) { return b.total - a.total; })
+ 			});
 
  			that.state.maxNumBuses = d3.max(that.state.nestedBuses.map((d) => d.values.length));
  			
@@ -62,7 +66,6 @@ class App extends Component {
 
 		});	
 		
-
 	}
 
 	getDistance(lat1,lon1,lat2,lon2) {
@@ -101,10 +104,8 @@ class App extends Component {
 		var y = d3.scaleLinear()
 	    	.rangeRound([this.height, 0]);
 
-		var z = d3.scaleOrdinal()
-	    	.range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
-
-	    console.log(this.state.nestedBuses);
+		var z = d3.scaleSequential(d3.interpolateBlues);
+			    console.log(this.state.nestedBuses);
 
 		x.domain(this.state.nestedBuses.map(function(d) { return d.key; }));
  		y.domain([0, d3.max(this.state.nestedBuses, function(d) { return d.total; })]).nice();
@@ -128,7 +129,7 @@ class App extends Component {
 
 		  g.append("g")
 		      .attr("class", "axis")
-		      .attr("transform", "translate(0," + (this.height- this.margin.top - this.margin.bottom) + ")")
+		      .attr("transform", "translate(0," + (this.height) + ")")
 		      .call(d3.axisBottom(x));
 
 		  g.append("g")
@@ -153,25 +154,45 @@ class App extends Component {
 		      .attr("transform", function(d, i) { return "translate(-50," + i * 20 + ")"; });
 
 		  legend.append("rect")
-		      .attr("x", this.width - 19)
+		      .attr("x", this.width + this.margin.right + this.margin.left - 19)
 		      .attr("width", 19)
 		      .attr("height", 19)
 		      .attr("fill", z);
 
 		  legend.append("text")
-		      .attr("x", this.width - 24)
-		      .attr("y", 9.5)
+		      .attr("x", this.width + this.margin.right + this.margin.left - 24)
+		      .attr("y", 9.5 )
 		      .attr("dy", "0.32em")
 		      .text(function(d) { return d; });
 
 	}
 
+	renderOptions() {
+		console.log("dropdown",this.state.nestedBuses);
+		return this.state.nestedBuses.map((r)=>{
+			return (<option value={r.key}>{r.key}</option>);
+		});
+	}
+
 	render() {
 		return (
 			<div>
+
 				<h1>Mira la grafica :o</h1>
+				<AccountsUIWrapper />
 				<svg width="960" height="500" id="graph"></svg>
 				<hr/>
+				<form>
+					<div>
+					<label>Comentario</label>
+					<input type="text" id="comment" />
+					</div>
+					<div>
+						<select name="route">
+							{this.renderOptions()}
+						</select>
+					</div>
+				</form>
 			</div>
 		);
 	}
@@ -179,11 +200,11 @@ class App extends Component {
 
 export default withTracker(() => {
 
-	Meteor.subscribe('numbers');
+	Meteor.subscribe('routes');
 
 	return {
 
-		numbers: Numbers.find({}).fetch(),
+		routes: Routes.find({}).fetch(),
 
 	};
 
