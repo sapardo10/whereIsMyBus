@@ -13,13 +13,20 @@ class App extends Component {
 
 		this.state = {
 		    nestedBuses:[],
-		    stackedBuses:[]
-		};
+		    stackedBuses:[],
+		    maxNumBuses:0,
+		    keys:[],
+		};		
+		
+		this.margin = {top: 20, right: 20, bottom: 30, left: 40};
+	}
 
+	componentDidMount() {
 
+		const that = this;
 
 		const url = 'https://gist.githubusercontent.com/john-guerra/a0b840ba721ed771dd02d94a855cb595/raw/d68dba41f118bebc438a4f7ade9d27078efdfc09/sfBuses.json';
-		var nested = fetch(url)
+		fetch(url)
 			.then((res) => res.json())
 			.then((data) => {				
 				var	nestedBuses = d3.nest().key((d) => d.routeTag).entries(data.vehicle);
@@ -28,24 +35,33 @@ class App extends Component {
 				 for (let route of nestedBuses ) {
 			      	route.total = 0;
 			      	route.values[0].distance = 0;
-			      	
+
 			      	for (let i = 1 ; i < route.values.length; i++) {
 			      		
-			        	route.values[i].distance = getDistance(+route.values[i-1].lat, +route.values[i-1].lon,
+			        	route.values[i].distance = that.getDistance(+route.values[i-1].lat, +route.values[i-1].lon,
 			          		+route.values[i].lat, +route.values[i].lon);
 			        	route.total += route.values[i].distance;
-			        	
+
 			    	}
 			    	
 				}
 				
- 			return nestedBuses.sort(function(a, b) { return b.total - a.total; });
-		});
-	
-		console.log(nested);
+ 			that.state.nestedBuses = nestedBuses.sort(function(a, b) { return b.total - a.total; });
 
+ 			that.state.maxNumBuses = d3.max(that.state.nestedBuses.map((d) => d.values.length));
+ 			
+ 			that.state.keys = d3.range(that.state.maxNumBuses);
 
-		this.margin = {top: 20, right: 20, bottom: 30, left: 40};
+ 			that.state.stackedBuses = d3.stack()
+			        .keys(that.state.keys)
+			        .value((d, key) => {
+			          return key < d.values.length ? d.values[key].distance : 0;
+			        })(that.state.nestedBuses);
+			        console.log('nestedbuses:', this.state.nestedBuses);
+					this.update();
+
+		});	
+		
 
 	}
 
@@ -65,78 +81,11 @@ class App extends Component {
 	    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 	    var d = R * c; // Distance in km
 	    return d;
+  		
   	}
 
-  	draw () {
-  		d3.csv("data.csv", function(d, i, columns) {
-		  for (i = 1, t = 0; i < columns.length; ++i) t += d[columns[i]] = +d[columns[i]];
-		  d.total = t;
-		  return d;
-		}, function(error, data) {
-		  if (error) throw error;
 
-		  var keys = data.columns.slice(1);
-
-		  data.sort(function(a, b) { return b.total - a.total; });
-		  x.domain(data.map(function(d) { return d.State; }));
-		  y.domain([0, d3.max(data, function(d) { return d.total; })]).nice();
-		  z.domain(keys);
-
-		  g.append("g")
-		    .selectAll("g")
-		    .data(d3.stack().keys(keys)(data))
-		    .enter().append("g")
-		      .attr("fill", function(d) { return z(d.key); })
-		    .selectAll("rect")
-		    .data(function(d) { return d; })
-		    .enter().append("rect")
-		      .attr("x", function(d) { return x(d.data.State); })
-		      .attr("y", function(d) { return y(d[1]); })
-		      .attr("height", function(d) { return y(d[0]) - y(d[1]); })
-		      .attr("width", x.bandwidth());
-
-		  g.append("g")
-		      .attr("class", "axis")
-		      .attr("transform", "translate(0," + height + ")")
-		      .call(d3.axisBottom(x));
-
-		  g.append("g")
-		      .attr("class", "axis")
-		      .call(d3.axisLeft(y).ticks(null, "s"))
-		    .append("text")
-		      .attr("x", 2)
-		      .attr("y", y(y.ticks().pop()) + 0.5)
-		      .attr("dy", "0.32em")
-		      .attr("fill", "#000")
-		      .attr("font-weight", "bold")
-		      .attr("text-anchor", "start")
-		      .text("Population");
-
-		  var legend = g.append("g")
-		      .attr("font-family", "sans-serif")
-		      .attr("font-size", 10)
-		      .attr("text-anchor", "end")
-		    .selectAll("g")
-		    .data(keys.slice().reverse())
-		    .enter().append("g")
-		      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
-
-		  legend.append("rect")
-		      .attr("x", width - 19)
-		      .attr("width", 19)
-		      .attr("height", 19)
-		      .attr("fill", z);
-
-		  legend.append("text")
-		      .attr("x", width - 24)
-		      .attr("y", 9.5)
-		      .attr("dy", "0.32em")
-		      .text(function(d) { return d; });
-		});
-  	}	
-
-	componentDidMount() {
-
+	update() {
 		const maxNumBuses = d3.max(this.state.nestedBuses.map((d) => d.values.length));
 
 		var svg = d3.select("svg");
@@ -155,16 +104,74 @@ class App extends Component {
 		var z = d3.scaleOrdinal()
 	    	.range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
 
-	    
+	    console.log(this.state.nestedBuses);
+
+		x.domain(this.state.nestedBuses.map(function(d) { return d.key; }));
+ 		y.domain([0, d3.max(this.state.nestedBuses, function(d) { return d.total; })]).nice();
+  		z.domain([0,this.state.maxNumBuses]);
+
+  		console.log(this.state.stackedBuses);
+
+  		g.append("g")
+		    .selectAll("g")
+		    .data(this.state.stackedBuses)
+		    .enter().append("g")
+		      .attr("fill", function(d) { return z(d.key); })
+		      .attr("stroke", "white")
+		    .selectAll("rect")
+		    .data(function(d) { return d; })
+		    .enter().append("rect")
+		      .attr("x", function(d) { return x(d.data.key); })
+		      .attr("y", function(d) { return y(d[1]); })
+		      .attr("height", function(d) { return y(d[0]) - y(d[1]); })
+		      .attr("width", x.bandwidth());
+
+		  g.append("g")
+		      .attr("class", "axis")
+		      .attr("transform", "translate(0," + (this.height- this.margin.top - this.margin.bottom) + ")")
+		      .call(d3.axisBottom(x));
+
+		  g.append("g")
+		      .attr("class", "axis")
+		      .call(d3.axisLeft(y).ticks(null, "s"))
+		    .append("text")
+		      .attr("x", 2)
+		      .attr("y", y(y.ticks().pop()) + 0.5)
+		      .attr("dy", "0.32em")
+		      .attr("fill", "#000")
+		      .attr("font-weight", "bold")
+		      .attr("text-anchor", "start")
+		      .text("Added distance");
+
+		  var legend = g.append("g")
+		      .attr("font-family", "sans-serif")
+		      .attr("font-size", 10)
+		      .attr("text-anchor", "end")
+		    .selectAll("g")
+		    .data(this.state.keys.slice().reverse())
+		    .enter().append("g")
+		      .attr("transform", function(d, i) { return "translate(-50," + i * 20 + ")"; });
+
+		  legend.append("rect")
+		      .attr("x", this.width - 19)
+		      .attr("width", 19)
+		      .attr("height", 19)
+		      .attr("fill", z);
+
+		  legend.append("text")
+		      .attr("x", this.width - 24)
+		      .attr("y", 9.5)
+		      .attr("dy", "0.32em")
+		      .text(function(d) { return d; });
 
 	}
 
 	render() {
 		return (
 			<div>
-
-				<svg width="960" height="500"></svg>
-
+				<h1>Mira la grafica :o</h1>
+				<svg width="960" height="500" id="graph"></svg>
+				<hr/>
 			</div>
 		);
 	}
