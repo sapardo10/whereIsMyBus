@@ -1,10 +1,12 @@
 import React, { Component } from 'react';
+import { Meteor } from 'meteor/meteor';
 import ReactDOM from 'react-dom';
 import { withTracker } from 'meteor/react-meteor-data';
-import { Routes } from '../api/routes.js';
+import { Comments } from '../api/comments.js';
 import classnames from 'classnames';
 import * as d3 from 'd3';
 import AccountsUIWrapper from './AccountsUIWrapper.js';
+import Comment from './Comment.js';
 
 
 class App extends Component {
@@ -23,11 +25,15 @@ class App extends Component {
 		this.margin = {top: 20, right: 20, bottom: 30, left: 40};
 	}
 
-	componentWillMount() {
+	componentDidMount() {
+		this.interval = setInterval(() => this.setState({ time: Date.now() }), 10000);
+	}
 
+	componentWillMount() {
+		clearInterval(this.interval);
 		const that = this;
 
-		const url = 'https://gist.githubusercontent.com/john-guerra/a0b840ba721ed771dd02d94a855cb595/raw/d68dba41f118bebc438a4f7ade9d27078efdfc09/sfBuses.json';
+		const url = 'http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni';
 		fetch(url)
 			.then((res) => res.json())
 			.then((data) => {				
@@ -61,7 +67,6 @@ class App extends Component {
 			        .value((d, key) => {
 			          return key < d.values.length ? d.values[key].distance : 0;
 			        })(that.state.nestedBuses);
-			        console.log('nestedbuses:', this.state.nestedBuses);
 					this.update();
 
 		});	
@@ -105,13 +110,10 @@ class App extends Component {
 	    	.rangeRound([this.height, 0]);
 
 		var z = d3.scaleSequential(d3.interpolateBlues);
-			    console.log(this.state.nestedBuses);
 
 		x.domain(this.state.nestedBuses.map(function(d) { return d.key; }));
  		y.domain([0, d3.max(this.state.nestedBuses, function(d) { return d.total; })]).nice();
   		z.domain([0,this.state.maxNumBuses]);
-
-  		console.log(this.state.stackedBuses);
 
   		g.append("g")
 		    .selectAll("g")
@@ -168,31 +170,80 @@ class App extends Component {
 	}
 
 	renderOptions() {
-		console.log("dropdown",this.state.nestedBuses);
 		return this.state.nestedBuses.map((r)=>{
-			return (<option value={r.key}>{r.key}</option>);
+			return (<option key={r.key} value={r.key}>{r.key}</option>);
 		});
+	}
+
+	renderComments() {
+		var comments = this.props.comments.filter((comment) => comment.route==this.state.routeSelected);
+		return comments.map((c,i)=> {
+			return <Comment key={i} comment={c}/>
+		});
+	}
+
+	handleSubmit(event) {
+		
+		event.preventDefault();
+    	const text = ReactDOM.findDOMNode(this.refs.comment).value;
+    	Meteor.call('comments.insert',text,this.state.routeSelected);
+    	ReactDOM.findDOMNode(this.refs.comment).value = '';
+
+	}
+
+	handleChange() {
+
+		this.setState({
+
+			routeSelected: ReactDOM.findDOMNode(this.refs.route).value,
+
+		});
+
 	}
 
 	render() {
 		return (
 			<div>
-
-				<h1>Mira la grafica :o</h1>
-				<AccountsUIWrapper />
-				<svg width="960" height="500" id="graph"></svg>
+				
+				<h1>How long until the next Bus?</h1>				
+				<svg width="900" height="450" id="graph"></svg>
 				<hr/>
-				<form>
-					<div>
-					<label>Comentario</label>
-					<input type="text" id="comment" />
-					</div>
-					<div>
-						<select name="route">
-							{this.renderOptions()}
-						</select>
-					</div>
-				</form>
+
+				<h2>Select a route:</h2>	
+				<br/>
+					<select className="form-control" ref="route" onChange={this.handleChange.bind(this)}>
+						{this.renderOptions()}
+					</select>
+				<br/>
+				<br/>
+				{this.props.currentUser ?
+				<div className="container">
+				<AccountsUIWrapper />
+											
+					<br/>
+						<form onSubmit={this.handleSubmit.bind(this)} className="">
+							<div className="form-group">
+							<label><strong>Comment</strong></label>
+							<br/>
+							<textarea className="form-control" rows="4" cols="50" type="textarea" ref="comment"/>
+							</div>
+							<input className="btn btn-info" type="submit" />
+						</form>	
+					<br/>
+					<br/>
+				</div> : 
+				<div className="container container-bottom">
+					<h1>Want to leave a comment on the routes?</h1>
+					<AccountsUIWrapper />
+				</div>}
+				<h2>{this.state.routeSelected?(
+					<div>Comments on route {this.state.routeSelected}</div>)
+					:
+					(<div>Select a route to see comments</div>)}</h2>
+				<ul className="list-group">
+					{this.renderComments()}
+				</ul>
+
 			</div>
 		);
 	}
@@ -200,12 +251,12 @@ class App extends Component {
 
 export default withTracker(() => {
 
-	Meteor.subscribe('routes');
+	Meteor.subscribe('comments');
 
 	return {
 
-		routes: Routes.find({}).fetch(),
-
+		comments: Comments.find({},{ sort: { createdAt: -1 } }).fetch(),
+		currentUser: Meteor.user(),
 	};
 
 })(App);

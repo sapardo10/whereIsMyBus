@@ -2,3 +2,35 @@
 .axis .domain {
   display: none;
 }
+
+body {
+	font-family: 'Cabin', sans-serif;
+	text-align: center;
+}
+
+h1,h2 {
+	font-family: 'Old Standard TT', serif, ;
+	padding-top: 0.2em;
+}
+h4 {
+	margin-top: 0.5em;
+}
+
+option {
+  text-align: center;
+}
+
+select {
+  background-color:  #80bfff;
+}
+
+.login-link-text {
+  font-size: 2em;
+  background: #e6f2ff;
+  border-radius: .25em;
+}
+
+.container-bottom {
+  margin-bottom: 5em;
+}
+

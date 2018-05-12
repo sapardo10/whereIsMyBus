@@ -1,5 +1,5 @@
 import { Meteor } from 'meteor/meteor';
-import { Routes } from '../imports/api/routes.js';
+import { Comments } from '../imports/api/comments.js';
 
 Meteor.startup(() => {
   // code to run on server at startup
