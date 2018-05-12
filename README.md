@@ -55,6 +55,10 @@ This repository has the standard MIT license. You can find it [here.](https://gi
 
 [![License: CC BY-SA 4.0](https://licensebuttons.net/l/by-sa/4.0/80x15.png)](https://creativecommons.org/licenses/by-sa/4.0/)
 
+###This code was based on https://beta.observablehq.com/@john-guerra/d3-stack-with-d3-nest , where you could find a bug setting a domain incorrectly, given that the domain should be [0,1,2...,n] not [0,n]
+
+z.domain([0, maxNumBuses]);
+
 
 Wunderschön oder? 
 Eeny, meeny, miny, moe. With which Bus should I go?
